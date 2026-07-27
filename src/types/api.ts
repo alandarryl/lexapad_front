@@ -45,3 +45,37 @@ export interface AnalysisResult {
   structuralAdvice: string;
   clarityScore: number;
 }
+
+
+// Représente un post-it / carte sur le canvas
+export interface CanvasItem {
+  id: string;
+  boardId: string;
+  content: string;
+  positionX: number;
+  positionY: number;
+  width?: number;
+  height?: number;
+  color?: string; // ex: '#1e293b', '#312e81', etc.
+  createdAt?: string;
+}
+
+// Représente un tableau complet avec ses items
+export interface Board {
+  id: string;
+  title: string;
+  userId?: string;
+  createdAt: string;
+  items?: CanvasItem[];
+}
+
+// DTO pour ajouter/mettre à jour une carte
+export interface UpsertCanvasItemDto {
+  id?: string;
+  content: string;
+  positionX: number;
+  positionY: number;
+  width?: number;
+  height?: number;
+  color?: string;
+}
