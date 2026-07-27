@@ -79,3 +79,39 @@ export interface UpsertCanvasItemDto {
   height?: number;
   color?: string;
 }
+
+
+// --- ESSAY TYPES ---
+export interface PromptRequest {
+  category: string;
+  difficulty: string;
+  topicInterest?: string;
+}
+
+export interface PromptResponse {
+  title: string;
+  description: string;
+  keyQuestions: string[];
+  suggestedKeywords: string[];
+}
+
+export interface GradeEssayRequest {
+  promptTitle: string;
+  essayContent: string;
+}
+
+export interface ScoringCriterion {
+  category: string;
+  score: number;
+  maxScore: number;
+  feedback: string;
+}
+
+export interface EssayGradeResponse {
+  overallScore: number;
+  generalFeedback: string;
+  detailedCriteria: ScoringCriterion[];
+  strengths: string[];
+  areasForImprovement: string[];
+  rewriteExample: string;
+}

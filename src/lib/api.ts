@@ -5,7 +5,11 @@ import {
   Board, 
   AnalysisResult,
   CanvasItem,
-  UpsertCanvasItemDto
+  UpsertCanvasItemDto,
+  PromptRequest,
+  PromptResponse,
+  GradeEssayRequest,
+  EssayGradeResponse
 } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5278/api';
@@ -93,4 +97,20 @@ export const api = {
 
   deleteCanvasItem: (itemId: string) =>
     fetcher<void>(`/boards/items/${itemId}`, { method: 'DELETE' }),
+
+
+  // --- ESSAYS (DISSERTATIONS) ---
+  generateEssayPrompt: (data: PromptRequest) =>
+    fetcher<PromptResponse>('/essays/generate-prompt', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  gradeEssay: (data: GradeEssayRequest) =>
+    fetcher<EssayGradeResponse>('/essays/grade', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+
 };

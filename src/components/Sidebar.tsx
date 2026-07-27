@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Layout, Sparkles, BookOpen } from 'lucide-react';
+import { FileText, Layout, Sparkles, BookOpen, Palette, GraduationCap } from 'lucide-react';
 
 const navigation = [
   { name: 'Notes', href: '/notes', icon: FileText },
+  { name: 'Croquis', href: '/drawings', icon: Palette },
   { name: 'Canvas', href: '/boards', icon: Layout },
+  { name: 'Dissertation', href: '/essays', icon: GraduationCap },
   { name: 'Analyse IA', href: '/analysis', icon: Sparkles },
 ];
 
