@@ -24,48 +24,55 @@ export default function NotesPage() {
   }, []);
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-5">
+    <main className="p-8 max-w-6xl mx-auto space-y-8">
+      {/* Header avec Titre Blanc Eclatant */}
+      <div className="flex items-center justify-between border-b border-slate-800 pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Mes Notes</h1>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Mes Notes</h1>
           <p className="text-sm text-slate-400 mt-1">Gère et édite tes documents en toute simplicité.</p>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-md shadow-indigo-600/20">
+        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
           <Plus className="w-4 h-4" /> Nouvelle Note
         </button>
       </div>
 
-      {/* Grid de notes */}
+      {/* Grid de Notes sur Fond Bleu Nuit */}
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-40 rounded-2xl bg-slate-900 border border-slate-800 animate-pulse" />
+            <div key={i} className="h-44 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {notes.map((note) => (
             <div
               key={note.id}
-              className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 transition-all cursor-pointer group flex flex-col justify-between"
+              className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/70 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center gap-2 text-indigo-400 mb-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="text-xs font-mono">{note.fontName} ({note.fontSize}px)</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1.5 text-indigo-400 font-medium text-xs bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-800/40">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{note.fontName} ({note.fontSize}px)</span>
+                  </div>
                 </div>
-                <h3 className="font-semibold text-slate-200 group-hover:text-indigo-300 transition-colors">
+
+                {/* Titre de la note */}
+                <h3 className="font-bold text-lg text-white group-hover:text-indigo-300 transition-colors">
                   {note.title}
                 </h3>
-                <p className="text-slate-400 text-sm mt-2 line-clamp-3 leading-relaxed">
+
+                {/* Contenu */}
+                <p className="text-slate-300 text-sm mt-2 line-clamp-3 leading-relaxed">
                   {note.content}
                 </p>
               </div>
 
-              <div className="mt-6 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-500">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
+              {/* Pied de carte */}
+              <div className="mt-6 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
                   {new Date(note.updateAt).toLocaleDateString()}
                 </span>
               </div>
