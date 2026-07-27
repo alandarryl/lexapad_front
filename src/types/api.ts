@@ -31,7 +31,17 @@ export interface AnalysisResponse {
   feedback?: string;
 }
 
+// Requête d'analyse envoyée au backend
 export interface AnalysisRequest {
   content: string;
   context?: string;
+}
+
+// Réponse renvoyée par /api/analysis/check
+export interface AnalysisResult {
+  correctedText: string;
+  vocabularySuggestions: string[];
+  grammarFeedback: string[];
+  structuralAdvice: string;
+  clarityScore: number;
 }
