@@ -123,7 +123,11 @@ export const api = {
     });
   },
 
-// 1. Route POST pour créer un item lié à un board
+  // 🔑 Suppression d'un tableau complet
+  deleteBoard: (id: string) =>
+    fetcher<void>(`/canvas/boards/${id}`, { method: 'DELETE' }),
+
+  // 1. Route POST pour créer un item lié à un board
   createCanvasItem: (boardId: string, item: Partial<CanvasItem>) =>
     fetcher<CanvasItem>(`/canvas/boards/${boardId}/items`, {
       method: 'POST',
@@ -137,8 +141,10 @@ export const api = {
       body: JSON.stringify(item),
     }),
 
+  // 3. Route DELETE pour supprimer un item individuel du tableau
   deleteCanvasItem: (itemId: string) =>
     fetcher<void>(`/canvas/items/${itemId}`, { method: 'DELETE' }),
+
   // --- ESSAYS (DISSERTATIONS) ---
   generateEssayPrompt: (data: PromptRequest) =>
     fetcher<PromptResponse>('/essays/generate-prompt', {

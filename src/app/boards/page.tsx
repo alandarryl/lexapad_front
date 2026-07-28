@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Board } from '@/types/api';
-import { LayoutGrid, Plus, Calendar, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Plus, Calendar, ArrowRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function BoardsPage() {
@@ -61,6 +61,27 @@ export default function BoardsPage() {
     } catch (err) {
       console.error('Erreur lors de la création :', err);
       alert('Impossible de créer le tableau.');
+    }
+  };
+
+  // Supprimer un tableau
+  const handleDeleteBoard = async (e: React.MouseEvent, boardId: string) => {
+    e.preventDefault();
+    e.stopPropagation(); // Empêche la redirection vers le tableau
+
+    if (!confirm('Voulez-vous vraiment supprimer ce tableau et tout son contenu ?')) {
+      return;
+    }
+
+    const previousBoards = [...boards];
+    setBoards((prev) => prev.filter((b) => b.id !== boardId));
+
+    try {
+      await api.deleteBoard(boardId);
+    } catch (err: any) {
+      console.error('Erreur lors de la suppression du tableau :', err);
+      setBoards(previousBoards); // Restauration si erreur
+      alert('Impossible de supprimer le tableau.');
     }
   };
 
@@ -144,12 +165,23 @@ export default function BoardsPage() {
 
             return (
               <Link href={boardHref} key={boardKey}>
-                <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/70 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer group flex flex-col justify-between h-48">
+                <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/70 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer group flex flex-col justify-between h-48 relative">
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-950/60 text-indigo-400 border border-indigo-900/40">
                         {board.items?.length || 0} carte(s)
                       </span>
+
+                      {/* Bouton de suppression du tableau */}
+                      {board.id && (
+                        <button
+                          onClick={(e) => handleDeleteBoard(e, board.id)}
+                          title="Supprimer le tableau"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
                     <h3 className="font-bold text-xl text-white group-hover:text-indigo-300 transition-colors">

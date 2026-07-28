@@ -16,7 +16,10 @@ export default function BoardDetailPage() {
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // État & Ref pour sécuriser la gestion du Drag & Drop
+  // Ref pour conserver l'état des items à jour dans les écouteurs d'événements globaux
+  const itemsRef = useRef<CanvasItem[]>([]);
+  itemsRef.current = items;
+
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const draggingIdRef = useRef<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -24,7 +27,6 @@ export default function BoardDetailPage() {
 
   const colors = ['#1e293b', '#312e81', '#064e3b', '#701a75', '#713f12'];
 
-  // Charger le tableau et ses éléments
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -53,7 +55,7 @@ export default function BoardDetailPage() {
     if (boardId) loadBoard();
   }, [boardId, router]);
 
-  // Gestion globale du Drag & Drop sur `window`
+  // --- GESTION DU DRAG & DROP PROPRE ---
   useEffect(() => {
     if (!draggingId) return;
 
@@ -75,19 +77,18 @@ export default function BoardDetailPage() {
     };
 
     const handleMouseUp = () => {
-      const currentId = draggingIdRef.current;
+      const activeId = draggingIdRef.current;
+      
+      // Réinitialisation de l'état de drag
       setDraggingId(null);
       draggingIdRef.current = null;
 
-      if (currentId) {
-        // Déclenchement propre de la sauvegarde hors du flux synchrone du State
-        setItems((latestItems) => {
-          const itemToSave = latestItems.find((i) => i.id === currentId);
-          if (itemToSave) {
-            Promise.resolve().then(() => handleSaveItem(itemToSave));
-          }
-          return latestItems;
-        });
+      // Sauvegarde propre basée sur la Ref mise à jour si l'item n'est pas temporaire
+      if (activeId) {
+        const itemToSave = itemsRef.current.find((i) => i.id === activeId);
+        if (itemToSave && !itemToSave.id.startsWith('temp-')) {
+          handleSaveItem(itemToSave);
+        }
       }
     };
 
@@ -100,13 +101,30 @@ export default function BoardDetailPage() {
     };
   }, [draggingId, dragOffset]);
 
-  // --- AJOUT D'UN ITEM (POST) ---
+  // Initialisation du drag
+  const handleMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scrollLeft = canvasRef.current.scrollLeft;
+    const scrollTop = canvasRef.current.scrollTop;
+
+    setDraggingId(item.id);
+    draggingIdRef.current = item.id; // Sync immédiat de la ref
+
+    setDragOffset({
+      x: e.clientX - rect.left + scrollLeft - item.positionX,
+      y: e.clientY - rect.top + scrollTop - item.positionY,
+    });
+  };
+
+  // --- AJOUT D'UN ITEM ---
   const handleAddItem = async () => {
     const tempId = `temp-${Date.now()}`;
 
     const newItem: CanvasItem = {
       id: tempId,
       canvasBoardId: boardId,
+      type: 'postit',
       content: 'Nouvelle carte...',
       positionX: 100 + items.length * 20,
       positionY: 100 + items.length * 20,
@@ -119,6 +137,7 @@ export default function BoardDetailPage() {
 
     try {
       const saved = await api.createCanvasItem(boardId, {
+        type: 'postit',
         content: newItem.content,
         positionX: newItem.positionX,
         positionY: newItem.positionY,
@@ -128,8 +147,17 @@ export default function BoardDetailPage() {
       });
 
       if (saved?.id) {
+        // Préserve la position au cas où la carte aurait été déplacée pendant sa création
         setItems((prev) =>
-          prev.map((item) => (item.id === tempId ? saved : item))
+          prev.map((item) =>
+            item.id === tempId
+              ? {
+                  ...saved,
+                  positionX: item.positionX,
+                  positionY: item.positionY,
+                }
+              : item
+          )
         );
       }
     } catch (err) {
@@ -146,28 +174,28 @@ export default function BoardDetailPage() {
   };
 
   // --- SAUVEGARDE / MISE À JOUR (PUT) ---
-const handleSaveItem = async (item: CanvasItem) => {
-  if (!item.id || item.id.startsWith('temp-')) {
-    return;
-  }
+  const handleSaveItem = async (item: CanvasItem) => {
+    if (!item.id || item.id.startsWith('temp-')) {
+      return;
+    }
 
-  try {
-    await api.updateCanvasItem(item.id, {
-      id: item.id,
-      canvasBoardId: boardId,
-      type: item.type || 'postit', // 👈 AJOUT ICI pour éviter le crash 500
-      content: item.content || '',
-      positionX: Math.round(item.positionX),
-      positionY: Math.round(item.positionY),
-      color: item.color || '#1e293b',
-      width: item.width || 220,
-      height: item.height || 140,
-      zIndex: item.zIndex || 1,
-    });
-  } catch (err) {
-    console.error('Erreur sauvegarde carte :', err);
-  }
-};
+    try {
+      await api.updateCanvasItem(item.id, {
+        id: item.id,
+        canvasBoardId: boardId,
+        type: item.type || 'postit',
+        content: item.content || '',
+        positionX: Math.round(item.positionX),
+        positionY: Math.round(item.positionY),
+        color: item.color || '#1e293b',
+        width: Math.round(item.width || 220),
+        height: Math.round(item.height || 140),
+        zIndex: item.zIndex || 1,
+      });
+    } catch (err) {
+      console.error('Erreur sauvegarde carte :', err);
+    }
+  };
 
   // --- SUPPRESSION (DELETE) ---
   const handleDeleteItem = async (itemId: string) => {
@@ -189,22 +217,6 @@ const handleSaveItem = async (item: CanvasItem) => {
         alert('Impossible de supprimer la carte sur le serveur.');
       }
     }
-  };
-
-  // Initialisation du drag
-  const handleMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const scrollLeft = canvasRef.current.scrollLeft;
-    const scrollTop = canvasRef.current.scrollTop;
-
-    setDraggingId(item.id);
-    draggingIdRef.current = item.id;
-
-    setDragOffset({
-      x: e.clientX - rect.left + scrollLeft - item.positionX,
-      y: e.clientY - rect.top + scrollTop - item.positionY,
-    });
   };
 
   if (loading) {
@@ -255,7 +267,6 @@ const handleSaveItem = async (item: CanvasItem) => {
             }}
             className="absolute w-60 rounded-2xl border border-slate-700/60 shadow-2xl p-4 flex flex-col gap-3 group transition-shadow"
           >
-            {/* Poignée de déplacement */}
             <div
               onMouseDown={(e) => handleMouseDown(e, item)}
               className="flex items-center justify-between border-b border-white/10 pb-2 cursor-grab active:cursor-grabbing"
@@ -281,7 +292,6 @@ const handleSaveItem = async (item: CanvasItem) => {
               </div>
             </div>
 
-            {/* Zone de texte avec propagation stoppée */}
             <textarea
               value={item.content}
               onChange={(e) => handleContentChange(item.id, e.target.value)}
