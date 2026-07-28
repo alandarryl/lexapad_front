@@ -22,6 +22,13 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
 
   // Charger la note UNIQUEMENT si ce n'est pas une nouvelle note
   useEffect(() => {
+    // 🔒 Vérification de la session
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     if (isNew) {
       setLoading(false);
       return;
@@ -37,6 +44,11 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
         setFontSize(note.fontSize || 16);
       } catch (err: any) {
         console.error('Erreur chargement note:', err);
+        if (err?.response?.status === 401 || err?.status === 401) {
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
         alert(`Impossible de charger cette note (404 / non trouvée).`);
         router.push('/notes');
       } finally {
@@ -47,7 +59,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
     loadNote();
   }, [noteId, isNew, router]);
 
-  // Sauvegarder la note
+// Sauvegarder la note
   const handleSave = async () => {
     if (!title.trim()) {
       alert('Veuillez donner un titre à votre note.');
@@ -57,15 +69,24 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
     setSaving(true);
     try {
       if (isNew) {
-        await api.createNote({
+        // On récupère le vrai ID (UUID) s'il existe en mémoire
+        const storedUserId = localStorage.getItem('userId');
+
+        const payload: any = {
           title,
           content,
           fontName,
           fontSize,
           letterSpacing: 0,
           lineHeight: 1.5,
-          userId: 'user_test_jonathan',
-        });
+        };
+
+        // N'ajouter le champ userId QUE s'il s'agit d'un ID valide
+        if (storedUserId) {
+          payload.userId = storedUserId;
+        }
+
+        await api.createNote(payload);
       } else {
         await api.updateNote(noteId, {
           title,
@@ -77,7 +98,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       router.push('/notes');
     } catch (err) {
       console.error('Erreur sauvegarde:', err);
-      alert('Erreur lors de la sauvegarde.');
+      alert('Erreur lors de la sauvegarde. Vérifiez les champs du formulaire.');
     } finally {
       setSaving(false);
     }

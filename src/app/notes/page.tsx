@@ -1,28 +1,44 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Note } from '@/types/api';
 import { Plus, FileText, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NotesPage() {
+  const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 🔒 Vérification de la session
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     async function loadNotes() {
       try {
         const data = await api.getNotes();
         setNotes(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Erreur au chargement des notes:', err);
+        // Si la session est invalide ou expirée
+        if (err?.response?.status === 401 || err?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('userEmail');
+          router.push('/login');
+        }
       } finally {
         setLoading(false);
       }
     }
+
     loadNotes();
-  }, []);
+  }, [router]);
 
   return (
     <main className="p-8 max-w-6xl mx-auto space-y-8">
