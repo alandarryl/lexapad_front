@@ -9,7 +9,10 @@ import {
   PromptRequest,
   PromptResponse,
   GradeEssayRequest,
-  EssayGradeResponse
+  EssayGradeResponse,
+  LoginDto,
+  RegisterDto,
+  AuthResponse
 } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5278/api';
@@ -17,18 +20,43 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5278/a
 async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // 🔑 Récupération du Token JWT dans le localStorage (côté client uniquement)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
+
+    if (response.status === 401) {
+      // Si le token est expiré ou invalide, déconnexion automatique
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+      throw new Error('Session expirée. Veuillez vous reconnecter.');
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Erreur API (${response.status}): ${errorText || response.statusText}`);
+      let errorMessage = response.statusText;
+      try {
+        const parsed = JSON.parse(errorText);
+        errorMessage = parsed.message || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     if (response.status === 204) {
@@ -43,6 +71,13 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // --- AUTHENTIFICATION ---
+  login: (data: LoginDto) => 
+    fetcher<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    
+  register: (data: RegisterDto) => 
+    fetcher<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+
   // --- NOTES ---
   getNotes: () => fetcher<Note[]>('/notes'),
   getNoteById: (id: string) => fetcher<Note>(`/notes/${id}`),
@@ -60,10 +95,10 @@ export const api = {
       body: JSON.stringify({ content, context }) 
     }),
 
-  // --- BOARDS (CANVAS) ---
+  // --- CANVAS (Ajusté aux routes /api/canvas du Backend) ---
   getBoards: async (): Promise<Board[]> => {
     try {
-      return await fetcher<Board[]>('/boards');
+      return await fetcher<Board[]>('/canvas/boards');
     } catch (error) {
       console.warn("Impossible de joindre le backend, retour de la liste vide :", error);
       return [];
@@ -72,7 +107,7 @@ export const api = {
 
   getBoardById: async (id: string): Promise<Board | null> => {
     try {
-      return await fetcher<Board>(`/boards/${id}`);
+      return await fetcher<Board>(`/canvas/boards/${id}`);
     } catch (error) {
       console.warn(`Impossible de récupérer le board ${id} :`, error);
       return null;
@@ -80,24 +115,22 @@ export const api = {
   },
 
   createBoard: async (title: string): Promise<Board> => {
-    return fetcher<Board>('/boards', {
+    return fetcher<Board>('/canvas/boards', {
       method: 'POST',
       body: JSON.stringify({
         title: title,
-        backgroundColor: '#F9FAFB'
       }),
     });
   },
 
   upsertCanvasItem: (boardId: string, item: UpsertCanvasItemDto) =>
-    fetcher<CanvasItem>(`/boards/${boardId}/items`, {
+    fetcher<CanvasItem>(`/canvas/boards/${boardId}/items`, {
       method: 'POST',
       body: JSON.stringify(item),
     }),
 
   deleteCanvasItem: (itemId: string) =>
-    fetcher<void>(`/boards/items/${itemId}`, { method: 'DELETE' }),
-
+    fetcher<void>(`/canvas/items/${itemId}`, { method: 'DELETE' }),
 
   // --- ESSAYS (DISSERTATIONS) ---
   generateEssayPrompt: (data: PromptRequest) =>
@@ -111,6 +144,4 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-
-
 };

@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { FileText, Layout, Sparkles, BookOpen, Palette, GraduationCap } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { FileText, Layout, Sparkles, BookOpen, Palette, GraduationCap, LogOut, User } from 'lucide-react';
 
 const navigation = [
   { name: 'Notes', href: '/notes', icon: FileText },
@@ -14,6 +15,25 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserEmail(localStorage.getItem('userEmail'));
+    }
+  }, [pathname]);
+
+  // 🙈 Masque la Sidebar sur la page d'accueil (/), de connexion (/login) et d'inscription (/register)
+  if (pathname === '/' || pathname === '/login' || pathname === '/register') {
+    return null;
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    router.push('/login');
+  };
 
   return (
     <aside className="w-64 bg-slate-900/95 border-r border-slate-800 flex flex-col h-screen sticky top-0">
@@ -51,9 +71,22 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
-        <p className="font-mono">API Status: <span className="text-emerald-400">Online</span></p>
+      {/* Footer Info & Logout */}
+      <div className="p-4 border-t border-slate-800 space-y-3 text-xs">
+        {userEmail && (
+          <div className="flex items-center gap-2 text-slate-300 px-2 py-1 rounded-lg bg-slate-800/50">
+            <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="truncate">{userEmail}</span>
+          </div>
+        )}
+        
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Déconnexion</span>
+        </button>
       </div>
     </aside>
   );
