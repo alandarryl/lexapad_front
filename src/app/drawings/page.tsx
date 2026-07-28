@@ -83,7 +83,7 @@ export default function DrawingsPage() {
     canvasRef.current?.undo();
   };
 
-  // Sauvegarder le dessin
+// Sauvegarder le dessin
   const handleSave = async () => {
     if (!title.trim()) {
       alert('Veuillez donner un titre à votre croquis.');
@@ -104,23 +104,31 @@ export default function DrawingsPage() {
           content: imageBase64,
         });
       } else {
-        // Création
-        await api.createNote({
+        // Création : Récupération dynamique de l'ID utilisateur
+        const storedUserId = localStorage.getItem('userId');
+
+        const payload: any = {
           title,
           content: imageBase64,
           fontName: 'Drawing',
           fontSize: 0,
           letterSpacing: 0,
           lineHeight: 1,
-          userId: 'user_test_jonathan',
-        });
+        };
+
+        // On n'ajoute userId que s'il est présent dans le localStorage
+        if (storedUserId) {
+          payload.userId = storedUserId;
+        }
+
+        await api.createNote(payload);
       }
 
       await loadDrawings();
       alert('Croquis sauvegardé avec succès !');
     } catch (err) {
       console.error('Erreur lors de la sauvegarde du dessin:', err);
-      alert('Impossible de sauvegarder le croquis.');
+      alert('Impossible de sauvegarder le croquis. Vérifiez les données ou la connexion.');
     } finally {
       setSaving(false);
     }
