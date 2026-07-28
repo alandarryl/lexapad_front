@@ -16,8 +16,9 @@ export default function BoardDetailPage() {
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // État pour gérer le glisser-déposer
+  // État & Ref pour sécuriser la gestion du Drag & Drop
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -25,32 +26,41 @@ export default function BoardDetailPage() {
 
   // Charger le tableau et ses éléments
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     async function loadBoard() {
       try {
         const data = await api.getBoardById(boardId);
-        setBoard(data);
         if (data) {
-                    setBoard(data);
-                    setItems(data.items || []);
-                    }
-      } catch (err) {
+          setBoard(data);
+          setItems(data.items || []);
+        }
+      } catch (err: any) {
         console.error('Erreur chargement tableau :', err);
+        if (err?.response?.status === 401 || err?.status === 401) {
+          localStorage.removeItem('token');
+          router.push('/login');
+        }
       } finally {
         setLoading(false);
       }
     }
-    if (boardId) loadBoard();
-  }, [boardId]);
 
-  // CORRECTION 2 : Gestion globale du Drag & Drop sur `window`
+    if (boardId) loadBoard();
+  }, [boardId, router]);
+
+  // Gestion globale du Drag & Drop sur `window`
   useEffect(() => {
     if (!draggingId) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      
-      // Prise en compte du scroll interne du canvas
+
       const scrollLeft = canvasRef.current.scrollLeft;
       const scrollTop = canvasRef.current.scrollTop;
 
@@ -65,12 +75,20 @@ export default function BoardDetailPage() {
     };
 
     const handleMouseUp = () => {
-      setItems((latestItems) => {
-        const draggedItem = latestItems.find((i) => i.id === draggingId);
-        if (draggedItem) handleSaveItem(draggedItem);
-        return latestItems;
-      });
+      const currentId = draggingIdRef.current;
       setDraggingId(null);
+      draggingIdRef.current = null;
+
+      if (currentId) {
+        // Déclenchement propre de la sauvegarde hors du flux synchrone du State
+        setItems((latestItems) => {
+          const itemToSave = latestItems.find((i) => i.id === currentId);
+          if (itemToSave) {
+            Promise.resolve().then(() => handleSaveItem(itemToSave));
+          }
+          return latestItems;
+        });
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -82,8 +100,13 @@ export default function BoardDetailPage() {
     };
   }, [draggingId, dragOffset]);
 
+  // --- AJOUT D'UN ITEM (POST) ---
   const handleAddItem = async () => {
-    const newItem = {
+    const tempId = `temp-${Date.now()}`;
+
+    const newItem: CanvasItem = {
+      id: tempId,
+      canvasBoardId: boardId,
       content: 'Nouvelle carte...',
       positionX: 100 + items.length * 20,
       positionY: 100 + items.length * 20,
@@ -92,11 +115,27 @@ export default function BoardDetailPage() {
       height: 140,
     };
 
+    setItems((prev) => [...prev, newItem]);
+
     try {
-      const saved = await api.upsertCanvasItem(boardId, newItem);
-      setItems((prev) => [...prev, saved]);
+      const saved = await api.createCanvasItem(boardId, {
+        content: newItem.content,
+        positionX: newItem.positionX,
+        positionY: newItem.positionY,
+        color: newItem.color,
+        width: newItem.width,
+        height: newItem.height,
+      });
+
+      if (saved?.id) {
+        setItems((prev) =>
+          prev.map((item) => (item.id === tempId ? saved : item))
+        );
+      }
     } catch (err) {
       console.error('Erreur ajout carte :', err);
+      setItems((prev) => prev.filter((item) => item.id !== tempId));
+      alert("Impossible d'ajouter la carte.");
     }
   };
 
@@ -106,26 +145,49 @@ export default function BoardDetailPage() {
     );
   };
 
-  const handleSaveItem = async (item: CanvasItem) => {
-    try {
-      await api.upsertCanvasItem(boardId, {
-        id: item.id,
-        content: item.content,
-        positionX: item.positionX,
-        positionY: item.positionY,
-        color: item.color,
-      });
-    } catch (err) {
-      console.error('Erreur sauvegarde carte :', err);
-    }
-  };
+  // --- SAUVEGARDE / MISE À JOUR (PUT) ---
+const handleSaveItem = async (item: CanvasItem) => {
+  if (!item.id || item.id.startsWith('temp-')) {
+    return;
+  }
 
+  try {
+    await api.updateCanvasItem(item.id, {
+      id: item.id,
+      canvasBoardId: boardId,
+      type: item.type || 'postit', // 👈 AJOUT ICI pour éviter le crash 500
+      content: item.content || '',
+      positionX: Math.round(item.positionX),
+      positionY: Math.round(item.positionY),
+      color: item.color || '#1e293b',
+      width: item.width || 220,
+      height: item.height || 140,
+      zIndex: item.zIndex || 1,
+    });
+  } catch (err) {
+    console.error('Erreur sauvegarde carte :', err);
+  }
+};
+
+  // --- SUPPRESSION (DELETE) ---
   const handleDeleteItem = async (itemId: string) => {
+    if (itemId.startsWith('temp-')) {
+      setItems((prev) => prev.filter((i) => i.id !== itemId));
+      return;
+    }
+
+    const previousItems = [...items];
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+
     try {
       await api.deleteCanvasItem(itemId);
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur suppression carte :', err);
+      const status = err?.response?.status || err?.status;
+      if (status !== 404) {
+        setItems(previousItems);
+        alert('Impossible de supprimer la carte sur le serveur.');
+      }
     }
   };
 
@@ -137,6 +199,8 @@ export default function BoardDetailPage() {
     const scrollTop = canvasRef.current.scrollTop;
 
     setDraggingId(item.id);
+    draggingIdRef.current = item.id;
+
     setDragOffset({
       x: e.clientX - rect.left + scrollLeft - item.positionX,
       y: e.clientY - rect.top + scrollTop - item.positionY,
@@ -217,12 +281,12 @@ export default function BoardDetailPage() {
               </div>
             </div>
 
-            {/* Zone de texte avec propagation stopppée */}
+            {/* Zone de texte avec propagation stoppée */}
             <textarea
               value={item.content}
               onChange={(e) => handleContentChange(item.id, e.target.value)}
               onBlur={() => handleSaveItem(item)}
-              onMouseDown={(e) => e.stopPropagation()} // CORRECTION 1 : Empêche le drag lors de l'édition
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Écris ton idée ici..."
               className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-400 resize-none outline-none min-h-[90px] leading-relaxed cursor-text"
             />

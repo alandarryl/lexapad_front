@@ -50,22 +50,25 @@ export interface AnalysisResult {
 // Représente un post-it / carte sur le canvas
 export interface CanvasItem {
   id: string;
-  boardId: string;
+  canvasBoardId?: string;
+  type?: string; // "postit", "card", "text"
   content: string;
   positionX: number;
   positionY: number;
   width?: number;
   height?: number;
-  color?: string; // ex: '#1e293b', '#312e81', etc.
-  createdAt?: string;
+  color?: string;
+  zIndex?: number;
+  updatedAt?: string;
 }
 
-// Représente un tableau complet avec ses items
 export interface Board {
   id: string;
   title: string;
+  backgroundColor?: string;
+  createdAt?: string;
+  updatedAt?: string;
   userId?: string;
-  createdAt: string;
   items?: CanvasItem[];
 }
 

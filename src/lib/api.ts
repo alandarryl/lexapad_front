@@ -123,15 +123,22 @@ export const api = {
     });
   },
 
-  upsertCanvasItem: (boardId: string, item: UpsertCanvasItemDto) =>
+// 1. Route POST pour créer un item lié à un board
+  createCanvasItem: (boardId: string, item: Partial<CanvasItem>) =>
     fetcher<CanvasItem>(`/canvas/boards/${boardId}/items`, {
       method: 'POST',
       body: JSON.stringify(item),
     }),
 
+  // 2. Route PUT pour modifier un item existant par son ID
+  updateCanvasItem: (itemId: string, item: Partial<CanvasItem>) =>
+    fetcher<CanvasItem>(`/canvas/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(item),
+    }),
+
   deleteCanvasItem: (itemId: string) =>
     fetcher<void>(`/canvas/items/${itemId}`, { method: 'DELETE' }),
-
   // --- ESSAYS (DISSERTATIONS) ---
   generateEssayPrompt: (data: PromptRequest) =>
     fetcher<PromptResponse>('/essays/generate-prompt', {

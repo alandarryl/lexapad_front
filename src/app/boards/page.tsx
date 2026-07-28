@@ -14,20 +14,31 @@ export default function BoardsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
 
-  // Charger les tableaux au montage
+  // Charger les tableaux au montage avec vérification d'authentification
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     async function loadBoards() {
       try {
         const data = await api.getBoards();
         setBoards(data || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Erreur au chargement des tableaux:', err);
+        if (err?.response?.status === 401 || err?.status === 401) {
+          localStorage.removeItem('token');
+          router.push('/login');
+        }
       } finally {
         setLoading(false);
       }
     }
+
     loadBoards();
-  }, []);
+  }, [router]);
 
   // Créer un nouveau tableau
   const handleCreateBoard = async (e?: React.FormEvent) => {
@@ -40,16 +51,16 @@ export default function BoardsPage() {
       setNewTitle('');
       setIsCreating(false);
 
-      // 🛑 VERIFICATION : On s'assure que l'ID n'est ni null/undefined, ni le GUID vide de Postgres/EF Core
+      // Vérification : ID valide renvoyé par le backend
       if (newBoard?.id && newBoard.id !== '00000000-0000-0000-0000-000000000000') {
         router.push(`/boards/${newBoard.id}`);
       } else {
-        // Si l'ID n'a pas été renvoyé directement, on rafraîchit la liste des tableaux
         const refreshedBoards = await api.getBoards();
         setBoards(refreshedBoards || []);
       }
     } catch (err) {
       console.error('Erreur lors de la création :', err);
+      alert('Impossible de créer le tableau.');
     }
   };
 
@@ -128,7 +139,6 @@ export default function BoardsPage() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {boards.map((board, index) => {
-            // Utilisation d'une clé de fallback propre au cas où un board en base n'a pas encore d'ID défini
             const boardKey = board.id || `temp-board-${index}`;
             const boardHref = board.id ? `/boards/${board.id}` : '#';
 
@@ -150,7 +160,7 @@ export default function BoardsPage() {
                   <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                      {board.createdAt ? new Date(board.createdAt).toLocaleDateString() : 'Aujourd\'hui'}
+                      {board.createdAt ? new Date(board.createdAt).toLocaleDateString() : "Aujourd'hui"}
                     </span>
                     <span className="flex items-center gap-1 text-indigo-400 group-hover:translate-x-1 transition-transform">
                       Ouvrir <ArrowRight className="w-3.5 h-3.5" />
